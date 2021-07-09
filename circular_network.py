@@ -41,6 +41,10 @@ def gen_net(number_of_nodes, number_of_neighbs, coop_freq):
             
         # Initialize the fitness of each node
         circulant.nodes[i]["fit"] = 0
+        
+        # Set node positions
+        circulant.nodes[i]["pos"] = (np.cos(i*2*np.pi/number_of_nodes), 
+                                     np.sin(i*2*np.pi/number_of_nodes))
             
     return circulant, colormap
 
@@ -69,22 +73,52 @@ def evolve_strats(network, colormap, payoff_mat):
     # colormap: colors of the nodes indicating cooperators and defectors
     # payoff_mat: payoff matrix for the game
     
-    # Loop over nodes
-    for i in range(network.number_of_nodes()):
-        
-        # Initialize the variable to save the coordinate of the fittest neighbor, 
-        # initially as the focal node
-        max_fit_idx = i 
-        
-        # Loop over neighbors, looking for the fittest one
-        for nb in network.neighbors(i):
-            if network.nodes[max_fit_idx]["fit"] < network.nodes[nb]["fit"]:
-                max_fit_idx = nb
-        
-        # Change the strategy of the focal node to the same of its fittest neighbor
-        network.nodes[i]["strat"] = network.nodes[max_fit_idx]["strat"]
-        colormap[i] = colormap[max_fit_idx]
+    past_network = nx.Graph.copy(network)
+    past_colormap = [i for i in colormap]
     
+    # Colors of nodes for cooperators (blue) and defectors (red)
+    colors = ["blue", "red"]
+    
+    # Loop over nodes
+    for i in range(past_network.number_of_nodes()):
+        
+        # Initialize lists to save fitnesses of cooperator and defector neighbors        
+        coop_nb_fit = [0]
+        defec_nb_fit = [0]
+        
+        # Check if focal node is cooperator or defector and add its fitness to
+        # the corresponding list
+        if past_network.nodes[i]["strat"] == 0:
+            coop_nb_fit.append(past_network.nodes[i]["fit"])
+        else:
+            defec_nb_fit.append(past_network.nodes[i]["fit"])
+        
+        # Loop over neighbors, adding their fitnesses to the appropriate lists
+        for nb in past_network.neighbors(i):
+            if past_network.nodes[nb]["strat"] == 0:
+                coop_nb_fit.append(past_network.nodes[nb]["fit"])
+            else:
+                defec_nb_fit.append(past_network.nodes[nb]["fit"])
+                
+        # Check if cooperators or defectors neighbors have higher fitness and
+        # update the focal node's strategy
+        if max(coop_nb_fit) > max(defec_nb_fit):
+            network.nodes[i]["strat"] = 0
+            colormap[i] = colors[0]
+        
+        elif max(coop_nb_fit) < max(defec_nb_fit):
+            network.nodes[i]["strat"] = 1
+            colormap[i] = colors[1]
+        
+        # In case of a fitness tie between cooperators and defectors, sort the
+        # new strategy for the focal node
+        else:
+            sort_strat = np.random.choice([0,1])
+            network.nodes[i]["strat"] = sort_strat
+            colormap[i] = colors[sort_strat]
+            
+        # Change the strategy of the focal node to the same of its fittest neighbor
+
     # Calculate the new fitness matrix
     calc_fit_mat(network, payoff_mat)
 
@@ -93,18 +127,24 @@ def evolve_strats(network, colormap, payoff_mat):
 
 # Payoff matrix
 eps = 0.
-b = 1.1
+b = 1.5
 payoff_mat = np.array([[1, 0],[b, eps]])
 
 # Initial cooperator frequency
-coop_freq = 0.9
+coop_freq = 0.5
+
+# Set random number generator seed
+np.random.seed(466)
 
 # Initialize network and calculate the fitness of its nodes
 network, colormap = gen_net(100, 4, 0.9)
 calc_fit_mat(network, payoff_mat)
 
+# Get node positions
+node_pos = nx.get_node_attributes(network, "pos")
+
 # Draw the initial network
-nx.draw(network, node_color=colormap, with_labels=True)
+nx.draw(network, node_pos, node_size=50, node_color=colormap, with_labels=True)
 plt.show()
 
 # Number of timesteps to run
@@ -116,5 +156,5 @@ for i in range(nt):
     evolve_strats(network, colormap, payoff_mat) # Evolve the network by a timestep
     
     # Plot the network
-    nx.draw(network, node_color=colormap)#, with_labels=True)
+    nx.draw(network, node_pos, node_size=50, node_color=colormap, with_labels=True)
     plt.show()
