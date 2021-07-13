@@ -10,6 +10,7 @@ Created on Thu Jul  8 17:17:44 2021
 import numpy as np # Dealing with arrays
 import matplotlib.pyplot as plt # Plotting
 import networkx as nx # Working with networks
+from tqdm import tqdm
 
 
 # Generate random circular network of cooperators (0) and defectors (1)
@@ -83,8 +84,8 @@ def evolve_strats(network, colormap, payoff_mat):
     for i in range(past_network.number_of_nodes()):
         
         # Initialize lists to save fitnesses of cooperator and defector neighbors        
-        coop_nb_fit = [0]
-        defec_nb_fit = [0]
+        coop_nb_fit = [-1]
+        defec_nb_fit = [-1]
         
         # Check if focal node is cooperator or defector and add its fitness to
         # the corresponding list
@@ -125,36 +126,97 @@ def evolve_strats(network, colormap, payoff_mat):
 
 ##############################################################################
 
-# Payoff matrix
-eps = 0.
-b = 1.5
-payoff_mat = np.array([[1, 0],[b, eps]])
+# Show the time evolution of a network
+def show_time_evol(n_nodes, init_coop_freq, n_neighbs, nt, b, eps, seed=None):
+    # n: number of nodes in the network
+    # init_coop_freq: cooperator frequency in the initial condition
+    # n_neighb: number of neighbors for each node
+    # nt: number of timesteps to run time evolution
+    # b: b parameter of payoff matrix
+    # eps: eps parameter of payoff matrix
+    # seed: seed for random number generation
 
-# Initial cooperator frequency
-coop_freq = 0.5
-
-# Set random number generator seed
-np.random.seed(466)
-
-# Initialize network and calculate the fitness of its nodes
-network, colormap = gen_net(100, 4, 0.9)
-calc_fit_mat(network, payoff_mat)
-
-# Get node positions
-node_pos = nx.get_node_attributes(network, "pos")
-
-# Draw the initial network
-nx.draw(network, node_pos, node_size=50, node_color=colormap, with_labels=True)
-plt.show()
-
-# Number of timesteps to run
-nt = 100
-
-# Time evolution of the network
-for i in range(nt):
+    # Payoff matrix
+    payoff_mat = np.array([[1, 0],[b, eps]])
     
-    evolve_strats(network, colormap, payoff_mat) # Evolve the network by a timestep
+    # Initialize network and calculate the fitness of its nodes
+    network, colormap = gen_net(n_nodes, n_neighbs, init_coop_freq)
+    calc_fit_mat(network, payoff_mat)
     
-    # Plot the network
-    nx.draw(network, node_pos, node_size=50, node_color=colormap, with_labels=True)
+    # Get node positions
+    node_pos = nx.get_node_attributes(network, "pos")
+    
+    # Draw the initial network
+    nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
     plt.show()
+    
+    # Number of timesteps to run
+    nt = 200
+    
+    # Time evolution of the network
+    for i in range(nt):
+        evolve_strats(network, colormap, payoff_mat) # Evolve the network by a timestep
+        
+        # Plot the network
+        nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
+        plt.title(f"{i}")
+        plt.show()
+    
+
+##############################################################################
+
+# Generate Cooperator Frequency curves for different b values
+def coop_freq_curves(n_nodes, init_coop_freq, n_neighbs, nt, eps, seed=0):
+    # n: number of nodes in the network
+    # init_coop_freq: cooperator frequency in the initial condition
+    # n_neighb: number of neighbors for each node
+    # nt: number of timesteps to run time evolution
+    # b: b parameter of payoff matrix
+    # eps: eps parameter of payoff matrix
+    # seed: seed for random number generation    
+    
+    # Array with timesteps
+    timesteps = np.linspace(1, nt, nt)
+    
+    # Array with different b values
+    b = np.linspace(1.1, 2., 10)
+    
+    # Array to store cooperator frequencies for all timesteps and b values
+    coop_freqs = np.zeros((nt, len(b)))
+    
+    # Loop over b values
+    for j in tqdm(range(len(b))):
+        
+        payoff_mat = np.array([[1., 0],[b[j], eps]]) # Define the payoff matrix
+        
+        # Set random number generator seed
+        np.random.seed(seed)
+        
+        # Initialize network and calculate its fitness matrix
+        network, colormap = gen_net(n_nodes, n_neighbs, init_coop_freq)
+        calc_fit_mat(network, payoff_mat)
+        
+        coop_freqs[0,j] = 1 - sum(nx.get_node_attributes(network, "strat").values()) / n_nodes
+        
+        # Time evolution of the network
+        for i in range(1, nt):
+            
+            evolve_strats(network, colormap, payoff_mat) # Evolve the network by a timestep
+            
+            coop_freqs[i,j] = 1 - sum(nx.get_node_attributes(network, "strat").values()) / n_nodes
+            
+    # Plot cooperator frequency time evolution for different b values
+    
+    for i in range(len(b)):
+        plt.plot(timesteps, coop_freqs[:,i], label=f"$b = {b[i]:0.2f}$") # Plot cooperator frequency over time
+        plt.legend(loc=(1.01, 0.1)) # Add legend
+        plt.xlabel("Time")
+        plt.ylabel("Cooperator Frequency")
+        plt.ylim(0, 1)
+    plt.show()
+        
+
+##############################################################################    
+
+# Plot evolution of cooperator frequencies for different b values
+coop_freq_curves(100, 0.9, 4, 200, 0, 4)
