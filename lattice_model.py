@@ -44,8 +44,8 @@ def neighbors(i, j, n):
     # j: column coordinate of node
     # n: lattice size
     
-    # Write neighbors coordinates, and then get the rest of the division by the network size, to account
-    # for the periodicity of the lattice
+    # Write neighbors coordinates, and then get the rest of the division by the network size, 
+    # to account for the periodicity of the lattice
     return np.array([[i-1,j-1],
                      [i-1,j],
                      [i-1,j+1],
@@ -88,22 +88,41 @@ def evolve_strat_mat(strat_mat, fit_mat):
 
     strat_mat_new = np.copy(strat_mat) # New strategy matrix, copying the past one
     
-    # Loop over all lattice nodes
+    # Initialize lists to save fitnesses of cooperator and defector neighbors
     for i in range(n):
         for j in range(n):
-            nb = neighbors(i, j, n) # Get neighbors' coordinates
-            idx_max_fit = [i,j] # Variable to store the coordinates of the neighbor with highest fitness
             
-            # Loop over neighbors
-            for nb_coords in nb:
-                a, b = nb_coords # Separate neighbor coordinates
-                
-                # Check if actual neighbor has higher fitness then the highest registrated yet
-                if fit_mat[a,b] > fit_mat[idx_max_fit[0], idx_max_fit[1]]:
-                    idx_max_fit = [a,b]
+            coop_nb_fit = [-1]
+            defec_nb_fit = [-1]
             
-            # Set new node strategy as the same of its neighbor with the highest fitness
-            strat_mat_new[i,j] = strat_mat[idx_max_fit[0], idx_max_fit[1]]
+            # Check if focal node is cooperator or defector and add its fitness to
+            # the corresponding list
+            if strat_mat[i,j] == 0:
+                coop_nb_fit.append(fit_mat[i,j])
+            else:
+                defec_nb_fit.append(fit_mat[i,j])
+            
+            # Loop over neighbors, adding their fitnesses to the appropriate lists
+            for nb in neighbors(i, j, n):
+                a, b = nb
+                if strat_mat[a,b] == 0:
+                    coop_nb_fit.append(fit_mat[a,b])
+                else:
+                    defec_nb_fit.append(fit_mat[a,b])
+                    
+            # Check if cooperators or defectors neighbors have higher fitness and
+            # update the focal node's strategy
+            if max(coop_nb_fit) > max(defec_nb_fit):
+                strat_mat_new[i,j] = 0
+            
+            elif max(coop_nb_fit) < max(defec_nb_fit):
+                strat_mat_new[i,j] = 1
+            
+            # In case of a fitness tie between cooperators and defectors, sort the
+            # new strategy for the focal node
+            else:
+                sort_strat = np.random.randint(0,2)
+                strat_mat_new[i,j] = sort_strat
     
     return strat_mat_new
 
@@ -112,7 +131,7 @@ def evolve_strat_mat(strat_mat, fit_mat):
 def plot_strat_mat(strat_mat):
     # strat_mat: strategy matrix
     
-    cmap = colors.ListedColormap(["blue", "red"]) # Define colormap for colorbar
+    cmap = colors.ListedColormap(["blue", "yellow"]) # Define colormap for colorbar
     norm = colors.BoundaryNorm([0,0.5,1], cmap.N) # Define divisions for the colorbar
     
     # Plot matrix by pixels
@@ -130,7 +149,7 @@ def plot_strat_mat_w_fit(strat_mat, fit_mat):
     # strat_mat: strategy matrix
     # fit_mat: fitness matrix
     
-    cmap = colors.ListedColormap(["blue", "red"]) # Define colormap for plotting
+    cmap = colors.ListedColormap(["blue", "yellow"]) # Define colormap for plotting
     norm = colors.BoundaryNorm([0,0.5,1], cmap.N) # Define divisions for colorbar
     
     # Plot matrix
@@ -180,6 +199,7 @@ def gen_comp_mat(strat_mat, strat_mat_new):
     
     return comp_strat_mat
 
+
 # Plot strategy matrix with more colors, specifying nodes that changed strategy or not
 def plot_strat_mat_w_past(strat_mat, strat_mat_new):
     # strat_mat: past strategy matrix
@@ -204,57 +224,288 @@ def plot_strat_mat_w_past(strat_mat, strat_mat_new):
 
 ##############################################################################
 
-nt = 201 # Number of timesteps
-n = 100 # Lattice size
+# Generate time evolution cooperator frequency for different b values and
+# multiple random number generator seeds
+def gen_coop_freq_evol(n, nt, b, eps=0., init_coop_freq=0.5, init_cond="random", 
+                       seeds=[None]):
+    # n: lattice side -> number of sites = n^2
+    # nt: number of timesteps to evolve
+    # b: array of values for b parameter value for the payoff matrix
+    # eps: eps parameter value for the payoff matrix
+    # init_coop_freq: frequency of cooperators on initial condition
+    # init_cond: initial condition of the lattice
+    # seeds: random number seeds to generate different initial conditions for each b value
 
-# Payoff matrix:
-#        C    D
-#    C   1    0
-#    D   b    eps
 
-eps = 0.
-
-b = np.linspace(1.5, 2, 6) # Different b values
-timesteps = [i for i in range(nt)] # Timesteps to save the cooperator frequency
-
-# Array to store cooperator frequency for different b values and different timesteps
-coop_freq = np.zeros((len(b), len(timesteps)))
-
-# Loop over b values
-for j in tqdm(range(len(b))):
+    timesteps = [i for i in range(nt)] # Timesteps to save the cooperator frequency
     
-    payoff_mat = np.array([[1., 0],[b[j], eps]]) # Define the payoff matrix
+    # Array to store cooperator frequency for different b values and different timesteps
+    coop_freq = np.zeros((len(b), len(seeds), len(timesteps)))
+    
+    # Loop over b values
+    for j in range(len(b)):
+        
+        payoff_mat = np.array([[1., 0],[b[j], eps]]) # Define the payoff matrix
+        
+        for k in range(len(seeds)):
+        
+            #################### Possible initial conditions #################
+
+            # Random initial condition
+            if init_cond == "random":
+                np.random.seed(seeds[k]) # Set random number generator seed to fix initial condition
+                strat_mat = gen_strat_mat(n, coop=init_coop_freq) # Generate initial matrix: random matrix
+            
+            # Cooperator cluster initial condition
+            if init_cond == "cluster":
+                strat_mat = np.ones((n,n), dtype=np.int) # Generate initial matrix with all defectors
+                cs = int(np.sqrt(init_coop_freq)*n/2) # Half cooperator cluster side
+                strat_mat[n//2-cs:n//2+cs,n//2-cs:n//2+cs] = 0 # Make a cluster of cooperators in the middle
+                
+            ##################################################################
+            
+            # Save cooperator frequency for the initial condition
+            coop_freq[j,k,0] = 1 - np.sum(strat_mat)/n**2
+            
+            # Time evolution = Loop over timesteps
+            for i in range(1, nt):
+                fit_mat = gen_fit_mat(strat_mat, payoff_mat) # Generate fitness matrix
+                strat_mat = evolve_strat_mat(strat_mat, fit_mat) # Evolve strategy matrix
+                
+                # Save the cooperator frequency for the desired timestesps
+                coop_freq[j,k,i] = 1 - np.sum(strat_mat)/n**2
+            
+            print(f"\rb: {j+1}/{len(b)}; seed: {k+1}/{len(seeds)}", end="")
+                
+    return coop_freq
+    
+
+# Plot the time evolution of cooperator frequency for different b values and
+# error margins indicating multiple random number generator seeds
+def plot_coop_freq_evol(coop_freq, b, save_files=False, same_graph=False):
+    # coop_freq: array with cooperator frequencies for different values of b, for different seeds, through time
+    #        |-> shape: (len(b), # of seeds, # of timesteps)
+    # b: array with different b values considered
+    # save_files: wheter to save plots to files or not
+    # same_graph: wether to put all plots together in a single graph
+    
+    
+    timesteps = [i for i in range(coop_freq.shape[2])] # Timesteps for plotting
+    
+    avg_coop_freq = np.mean(coop_freq, axis=1)
+    min_coop_freq = np.min(coop_freq, axis=1)
+    max_coop_freq = np.max(coop_freq, axis=1)
+    
+    # If one wishes to save all curves to the same graph
+    if same_graph:
+        # Plot cooperator frequency time evolution for different b values
+        plt.figure(figsize=(10,7))
+        for j in range(coop_freq.shape[0]):        
+            plt.plot(timesteps, avg_coop_freq[j], lw=3, label=f"$b={b[j]:.2f}$")
+            plt.fill_between(timesteps, min_coop_freq[j], max_coop_freq[j], alpha=0.3)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.xlim(0, timesteps[-1])
+        plt.ylim(0, 1)
+        plt.xlabel("Time", fontsize=24)
+        plt.ylabel("Cooperator Frequency", fontsize=24)
+        plt.legend(loc=(1.01, 0.5), fontsize=16)
+        
+        # Save plot to file or show it
+        if save_files:
+            plt.savefig(f"lattice_100x100_coop_freq_vs_time_variation_b={b[0]:.2f}-{b[-1]:.2f}.pdf", 
+                        bbox_inches="tight")
+            plt.close()
+        
+        else:
+            plt.show()
+        
+    # If one wishes to save separate graphs
+    else:
+        # Plot cooperator frequency time evolution for different b values
+        for j in range(coop_freq.shape[0]):        
+            plt.figure(figsize=(10,7))
+            plt.plot(timesteps, avg_coop_freq[j], lw=3)
+            plt.fill_between(timesteps, min_coop_freq[j], max_coop_freq[j], alpha=0.3)
+            plt.xticks(fontsize=16)
+            plt.yticks(fontsize=16)
+            plt.xlim(0, timesteps[-1])
+            plt.ylim(0, 1)
+            plt.xlabel("Time", fontsize=24)
+            plt.ylabel("Cooperator Frequency", fontsize=24)
+            plt.title(f"$b = {b[j]:.2f}$", fontsize=26)
+                
+            # Save plot to file or show it
+            if save_files:
+                plt.savefig(f"lattice_100x100_coop_freq_vs_time_variation_b={b[j]:.2f}.pdf", 
+                            bbox_inches="tight")
+                plt.close()
+            
+            else:
+                plt.show()
+
+
+##############################################################################
+
+# Generate final cooperator frequency for different b values
+def gen_final_coop_freq(n, nt, nt_save, b, eps=0., init_coop_freq=0.5, 
+                         init_cond="random", save_files=False, seed=None):
+    # n: lattice side -> number of sites = n^2
+    # nt: number of timesteps to evolve before annotating results
+    # nt: number of timesteps to annotate results for calculating statistics
+    # b: array of values for b parameter value for the payoff matrix
+    # eps: eps parameter value for the payoff matrix
+    # init_coop_freq: frequency of cooperators on initial condition
+    # init_cond: initial condition of the lattice
+    # save_files: wether to save plots to files or not
+    # seed: random number generator seed
+    
+    
+    # Array to store cooperator frequency for different b values and different timesteps
+    coop_freq = np.zeros((len(b), nt_save))
+    
+    # Loop over b values
+    for j in range(len(b)):
+        
+        payoff_mat = np.array([[1., 0],[b[j], eps]]) # Define the payoff matrix
+        
+        ####################### Possible initial conditions ##################
+
+        # Random initial condition
+        if init_cond == "random":
+            np.random.seed(seed) # Set random number generator seed to fix initial condition
+            strat_mat = gen_strat_mat(n, coop=init_coop_freq) # Generate initial matrix: random matrix
+        
+        # Cooperator cluster initial condition
+        if init_cond == "cluster":
+            strat_mat = np.ones((n,n), dtype=np.int) # Generate initial matrix with all defectors
+            cs = int(np.sqrt(init_coop_freq)*n/2) # Half cooperator cluster side
+            strat_mat[n//2-cs:n//2+cs,n//2-cs:n//2+cs] = 0 # Make a cluster of cooperators in the middle
+            
+        ######################################################################
+        
+        # Time evolution = Loop over timesteps
+        for i in range(1, nt):
+            fit_mat = gen_fit_mat(strat_mat, payoff_mat) # Generate fitness matrix
+            strat_mat = evolve_strat_mat(strat_mat, fit_mat) # Evolve strategy matrix
+            
+            print(f"\rb: {j+1}/{len(b)}; time: {i+1}/{nt}", end="")
+        
+        for i in range(nt_save):
+            fit_mat = gen_fit_mat(strat_mat, payoff_mat) # Generate fitness matrix
+            strat_mat = evolve_strat_mat(strat_mat, fit_mat) # Evolve strategy matrix
+            
+            # Save the cooperator frequency for the desired timestesps
+            coop_freq[j,i] = 1 - np.sum(strat_mat)/n**2
+            
+            print(f"\rb: {j+1}/{len(b)}; time: {i+1}/{nt_save}", end="")
+    
+    return coop_freq
+
+# Plot statistics of final cooperator frequency for different b values
+def plot_final_coop_freq(coop_freq, b, save_files=False):
+    # coop_freq: array containing some timesteps of the cooperator frequency for different values of b
+    #        |-> shape: (len(b), # of timesteps)
+    # b: array of b values considered for generating "coop_freq"
+    # save_files: wether or not to save plot to file
+    
+    final_coop_freq_avg = np.mean(coop_freq, axis=1) # Average final cooperator frequencies
+    final_coop_freq_min = np.min(coop_freq, axis=1) # Minimum final cooperator frequencies
+    final_coop_freq_max = np.max(coop_freq, axis=1) # Maximum final cooperator frequencies
+    
+    # Generate errorbars from minimum to maximum cooperator frequencies
+    errorbars = np.zeros((2, len(b)))
+    for i in range(len(b)):
+        errorbars[:,i] = [final_coop_freq_avg[i]-final_coop_freq_min[i],
+                        final_coop_freq_max[i]-final_coop_freq_avg[i]]
+    
+    # Set colors for plot
+    colors = plt.cm.viridis(np.linspace(0, 1, len(b)))
+    
+    # Plot final cooperator frequency for different b values
+    plt.figure(figsize=(10,7))
+    for i in range(len(b)):
+        # Plot markers with errorbars
+        plt.errorbar(b[i], final_coop_freq_avg[i], errorbars[:,i:i+1], 
+                     color=colors[i], marker="o", markersize=10, capsize=5,
+                     label=f"$b = {b[i]:0.2f}$")
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.xlabel("$b$", fontsize=24)
+        plt.ylabel("Final Cooperator Frequency", fontsize=24)
+    
+    # Save plot to file or show it
+    if save_files:
+        plt.savefig("lattice_100x100_final_coop_freq_vs_b.pdf", bbox_inches="tight")
+        plt.close()
+        
+    else:
+        plt.show()
+
+
+##############################################################################
+
+# Plot the lattice's time evolution
+def plot_lat_evol(n, nt, b, eps=0., init_coop_freq=0.5, init_cond="random", save_files=False, seed=None):
+    # n: lattice side -> number of sites = n^2
+    # nt: number of timesteps to consider evolution
+    # b: b parameter value for the payoff matrix
+    # eps: eps parameter value for the payoff matrix
+    # init_coop_freq: frequency of cooperators on initial condition
+    # init_cond: initial condition of the lattice
+    # save_files: wether to save plots to files or not
+    # seed: random number generator seed
+    
+    
+    # Check if folder for saving figures exists, and if not, create it
+    if "lattice_model_movie" not in os.listdir():
+        
+        os.mkdir("lattice_model_movie") # Create folder
+    
+    
+    # Define the payoff matrix
+    payoff_mat = np.array([[1., 0],[b, eps]])
     
     ####################### Possible initial conditions ######################
+
+    # Random initial condition
+    if init_cond == "random":
+        np.random.seed(seed) # Set random number generator seed to fix initial condition
+        strat_mat = gen_strat_mat(n, coop=init_coop_freq) # Generate initial matrix: random matrix
     
-    # -------------- Cooperator cluster initial condition --------------------
-    strat_mat = np.ones((n,n), dtype=np.int) # # Generate initial matrix with all defectors
-    strat_mat[n//2-10:n//2+10,n//2-10:n//2+10] = 0 # Make a cluster of cooperators in the middle
-    # ------------------------------------------------------------------------
+    # Cooperator cluster initial condition
+    if init_cond == "cluster":
+        strat_mat = np.ones((n,n), dtype=np.int) # Generate initial matrix with all defectors
+        cs = int(np.sqrt(init_coop_freq)*n/2) # Half cooperator cluster side
+        strat_mat[n//2-cs:n//2+cs,n//2-cs:n//2+cs] = 0 # Make a cluster of cooperators in the middle
+        
+    ##########################################################################    
     
-    # ------------------- Random initial condition ---------------------------
-    # np.random.seed(13) # Set random number generator seed to fix initial condition
-    # strat_mat = gen_strat_mat(n, coop=0.9) # Generate initial matrix: random matrix
-    # ------------------------------------------------------------------------
     
-    ##########################################################################
+    # Plot initial condition
+    plot_strat_mat(strat_mat)
+    plt.title(f"$b = {b:.2f}$")
     
-    # Save cooperator frequency for the initial condition
-    coop_freq[:,0] = 1 - np.sum(strat_mat)/n**2
+    # Save or show plot
+    if save_files:
+        plt.savefig(f"lattice_model_movie/lattice_model_{0:04d}", dpi=300, bbox_inches="tight")
+        plt.close() 
+        
+    else:
+        plt.show()
+    
     
     # Time evolution = Loop over timesteps
-    for i in range(1, nt):
-        fit_mat = gen_fit_mat(strat_mat, payoff_mat) # Generate fitness matrix
-        strat_mat = evolve_strat_mat(strat_mat, fit_mat) # Evolve strategy matrix
+    for i in tqdm(range(1, nt)):
+        fit_mat = gen_fit_mat(strat_mat, payoff_mat) # Calculate fitness matrix
+        strat_mat = evolve_strat_mat(strat_mat, fit_mat) # Time evolution by one timestep
+        plot_strat_mat(strat_mat) # Plot lattice
+        plt.title(f"$b = {b:.2f}$") # Add title 
         
-        # Save the cooperator frequency for the desired timestes
-        if i in timesteps:
-            coop_freq[j,timesteps.index(i)] = 1 - np.sum(strat_mat)/n**2
-
-# Plot cooperator frequency time evolution for different b values
-for i in range(len(b)):
-    plt.plot(timesteps, coop_freq[i], label=f"$b = {b[i]}$") # Plot cooperator frequency over time
-    plt.legend(loc=(1.01, 0.5)) # Add legend
-    plt.xlabel("$b$")
-    plt.ylabel("Cooperator Frequency")
-    # plt.yscale("log") # Set scale of y axis
+        # Save or show plot
+        if save_files:
+            plt.savefig(f"lattice_model_movie/lattice_model_{i:04d}", dpi=300, bbox_inches="tight")
+            plt.close() 
+        
+        else:
+            plt.show()
