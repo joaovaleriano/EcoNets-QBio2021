@@ -17,7 +17,8 @@ from tqdm import tqdm
 # Generate random circular network of cooperators (0) and defectors (1)
 def gen_net(number_of_nodes, knn, rewire, coop_freq, seed):
     # number_of_nodes: number of nodes in the network
-    # number_of_edges: 
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
     # coop_freq: cooperator frequency
     
     # Create circular network
@@ -131,7 +132,8 @@ def evolve_strats(network, colormap, payoff_mat):
 def show_time_evol(n_nodes, init_coop_freq, knn, rewire, nt, b, eps, seed=None):
     # n: number of nodes in the network
     # init_coop_freq: cooperator frequency in the initial condition
-    # n_neighb: number of neighbors for each node
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
     # nt: number of timesteps to run time evolution
     # b: b parameter of payoff matrix
     # eps: eps parameter of payoff matrix
@@ -149,7 +151,7 @@ def show_time_evol(n_nodes, init_coop_freq, knn, rewire, nt, b, eps, seed=None):
     
     # Draw the initial network
     nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
-    # plt.savefig(f"circulant_movie/circulant{0:04d}.png", dpi=300)
+    # plt.savefig(f"small_world_movie/small_world{0:04d}.png", dpi=300)
     plt.show()
     
     # Time evolution of the network
@@ -159,7 +161,7 @@ def show_time_evol(n_nodes, init_coop_freq, knn, rewire, nt, b, eps, seed=None):
         # Plot the network
         nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
         plt.title(f"{i}")
-        # plt.savefig(f"circulant_movie/circulant{i:04d}.png", dpi=300)
+        # plt.savefig(f"small_world_movie/small_world{i:04d}.png", dpi=300)
         plt.show()
 
 # show_time_evol(n_nodes=100, init_coop_freq=0.9, knn=8, rewire=1., 
@@ -170,12 +172,13 @@ def show_time_evol(n_nodes, init_coop_freq, knn, rewire, nt, b, eps, seed=None):
 # Generate Cooperator Frequency curves for different b values
 def gen_coop_freq_evol(n_nodes, nt, b, eps, seeds, init_coop_freq, knn, rewire):
     # n: number of nodes in the network
-    # init_coop_freq: cooperator frequency in the initial condition
-    # n_neighb: number of neighbors for each node
     # nt: number of timesteps to run time evolution
     # b: b parameter of payoff matrix
     # eps: eps parameter of payoff matrix
-    # seed: seed for random number generation    
+    # seed: seed for random number generation
+    # init_coop_freq: cooperator frequency in the initial condition
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
     
 
     # Array to store cooperator frequencies for all timesteps and b values
@@ -237,7 +240,7 @@ def plot_coop_freq_evol(coop_freqs, b, title=None, save_files=False):
         plt.title(title, fontsize=28)
         
     if save_files:
-        plt.savefig(f"circulant_100nodes_4nbs_coop_freq_evol_error.pdf",
+        plt.savefig(f"small_world_coop_freq_evol_error.pdf",
                     bbox_inches="tight")
     
     else:    
@@ -245,13 +248,6 @@ def plot_coop_freq_evol(coop_freqs, b, title=None, save_files=False):
     
     return coop_freqs
         
-
-# Plot evolution of cooperator frequencies for different b values
-# b = [1.1, 1.3, 1.5, 1.7, 1.9, 2.0]
-# seeds = [143]
-# coop_freqs = gen_coop_freq_evol(n_nodes=100, nt=100, b=b, 
-#                                 eps=0., seeds=seeds, init_coop_freq=0.9, n_neighbs=4)
-# plot_coop_freq_evol(coop_freqs, b, save_files=True)
 
 # Plot evolution of cooperator frequencies for different b values
 # b = [1.1, 1.2, 1.3, 1.4, 1.5]
@@ -265,8 +261,10 @@ def plot_coop_freq_evol(coop_freqs, b, title=None, save_files=False):
 # Generate final cooperator frequency for different b values
 def gen_final_coop_freq(n_nodes, knn, rewire, nt, nt_save, b, eps=0., init_coop_freq=0.5, seed=None):
     # n: lattice side -> number of sites = n^2
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
     # nt: number of timesteps to evolve before annotating results
-    # nt: number of timesteps to annotate results for calculating statistics
+    # nt_save: number of timesteps to annotate results for calculating statistics
     # b: array of values for b parameter value for the payoff matrix
     # eps: eps parameter value for the payoff matrix
     # init_coop_freq: frequency of cooperators on initial condition
@@ -337,7 +335,7 @@ def plot_final_coop_freq(coop_freq, b, save_files=False):
     
     # Save plot to file or show it
     if save_files:
-        plt.savefig("circulant_100nodes_4nbs_final_coop_freq_vs_b.pdf", bbox_inches="tight")
+        plt.savefig("small_world_final_coop_freq_vs_b.pdf", bbox_inches="tight")
         plt.close()
         
     else:
@@ -355,8 +353,10 @@ def plot_final_coop_freq(coop_freq, b, save_files=False):
 # Generate final cooperator frequency for different b values
 def gen_final_coop_freq(n_nodes, knn, rewire, nt, nt_save, b, eps=0., init_coop_freq=0.5, seeds=[None]):
     # n: lattice side -> number of sites = n^2
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
     # nt: number of timesteps to evolve before annotating results
-    # nt: number of timesteps to annotate results for calculating statistics
+    # nt_save: number of timesteps to annotate results for calculating statistics
     # b: array of values for b parameter value for the payoff matrix
     # eps: eps parameter value for the payoff matrix
     # init_coop_freq: frequency of cooperators on initial condition
@@ -387,7 +387,7 @@ def gen_final_coop_freq(n_nodes, knn, rewire, nt, nt_save, b, eps=0., init_coop_
                     evolve_strats(network, colormap, payoff_mat) # Evolve the network by a timestep
                     
                     # Save the cooperator frequency for the desired timestesps
-                    coop_freq[j,k,i,s] = 1 - sum(nx.get_node_attributes(network, "strat").values()) / n_nodes
+                    coop_freq[j,k,s,i] = 1 - sum(nx.get_node_attributes(network, "strat").values()) / n_nodes
                     
                     print(f"\rb: {j+1}/{len(b)}; time: {i+1}/{nt_save}", end="")
     
@@ -400,7 +400,7 @@ def plot_final_coop_freq(coop_freq, b, rewire, save_files=False):
     # b: array of b values considered for generating "coop_freq"
     # save_files: wether or not to save plot to file
     
-    avg_coop_freq = np.mean(coop_freq, axis=2) # Average final cooperator frequencies
+    avg_coop_freq = np.mean(coop_freq, axis=-1) # Average final cooperator frequencies
     
     final_coop_freq_avg = np.mean(avg_coop_freq, axis=-1) # Average final cooperator frequencies
     final_coop_freq_min = np.min(avg_coop_freq, axis=-1) # Minimum final cooperator frequencies
@@ -431,7 +431,7 @@ def plot_final_coop_freq(coop_freq, b, rewire, save_files=False):
     
     # Save plot to file or show it
     if save_files:
-        plt.savefig("circulant_100nodes_4nbs_final_coop_freq_vs_b.pdf", bbox_inches="tight")
+        plt.savefig("small_world_final_coop_freq_vs_b.pdf", bbox_inches="tight")
         plt.close()
         
     else:

@@ -6,6 +6,7 @@ Created on Mon Jul 19 17:19:58 2021
 @author: joao-valeriano
 """
 
+
 # Import packages
 import numpy as np # Dealing with arrays
 import matplotlib.pyplot as plt # Plotting
@@ -13,13 +14,14 @@ import networkx as nx # Working with networks
 from tqdm import tqdm
 
 
-# Generate random circular network of cooperators (0) and defectors (1)
+# Generate random random network of cooperators (0) and defectors (1)
 def gen_net(number_of_nodes, number_of_edges, coop_freq, seed):
     # number_of_nodes: number of nodes in the network
-    # number_of_edges: 
+    # number_of_edges: number of edges
     # coop_freq: cooperator frequency
+    # seed: random number generator seed
     
-    # Create circular network
+    # Create random network
     network = nx.gnm_random_graph(number_of_nodes, number_of_edges, seed)
     
     # Array to store colormap indicating cooperators (blue) and defectors (red)
@@ -74,7 +76,6 @@ def evolve_strats(network, colormap, payoff_mat):
     # payoff_mat: payoff matrix for the game
     
     past_network = nx.Graph.copy(network)
-    past_colormap = [i for i in colormap]
     
     # Colors of nodes for cooperators (blue) and defectors (red)
     colors = ["blue", "yellow"]
@@ -129,7 +130,7 @@ def evolve_strats(network, colormap, payoff_mat):
 def show_time_evol(n_nodes, init_coop_freq, n_edges, nt, b, eps, seed=None):
     # n: number of nodes in the network
     # init_coop_freq: cooperator frequency in the initial condition
-    # n_neighb: number of neighbors for each node
+    # n_edges: number of edges
     # nt: number of timesteps to run time evolution
     # b: b parameter of payoff matrix
     # eps: eps parameter of payoff matrix
@@ -147,7 +148,7 @@ def show_time_evol(n_nodes, init_coop_freq, n_edges, nt, b, eps, seed=None):
     
     # Draw the initial network
     nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
-    # plt.savefig(f"circulant_movie/circulant{0:04d}.png", dpi=300)
+    # plt.savefig(f"random_movie/random{0:04d}.png", dpi=300)
     plt.show()
     
     # Time evolution of the network
@@ -157,7 +158,7 @@ def show_time_evol(n_nodes, init_coop_freq, n_edges, nt, b, eps, seed=None):
         # Plot the network
         nx.draw(network, node_pos, node_size=50, node_color=colormap)#, with_labels=True)
         plt.title(f"{i}")
-        # plt.savefig(f"circulant_movie/circulant{i:04d}.png", dpi=300)
+        # plt.savefig(f"random_movie/random{i:04d}.png", dpi=300)
         plt.show()
 
 # show_time_evol(n_nodes=100, init_coop_freq=0.9, n_edges=400, 
@@ -168,12 +169,12 @@ def show_time_evol(n_nodes, init_coop_freq, n_edges, nt, b, eps, seed=None):
 # Generate Cooperator Frequency curves for different b values
 def gen_coop_freq_evol(n_nodes, nt, b, eps, seeds, init_coop_freq, n_edges):
     # n: number of nodes in the network
-    # init_coop_freq: cooperator frequency in the initial condition
-    # n_neighb: number of neighbors for each node
     # nt: number of timesteps to run time evolution
-    # b: b parameter of payoff matrix
+    # b: array of b parameter values of payoff matrix
     # eps: eps parameter of payoff matrix
-    # seed: seed for random number generation    
+    # seed: seed for random number generation
+    # init_coop_freq: cooperator frequency in the initial condition
+    # n_edges: number of edges
     
 
     # Array to store cooperator frequencies for all timesteps and b values
@@ -207,6 +208,9 @@ def gen_coop_freq_evol(n_nodes, nt, b, eps, seeds, init_coop_freq, n_edges):
 
 
 def plot_coop_freq_evol(coop_freqs, b, save_files=False):
+    # coop_freqs: cooperator frequency curves
+    # b: value of the b parameter of payoff matrix
+    # save_files: wether to save plot to file or not
     
     # Array with timesteps
     timesteps = np.linspace(1, coop_freqs.shape[0], coop_freqs.shape[0])
@@ -234,7 +238,7 @@ def plot_coop_freq_evol(coop_freqs, b, save_files=False):
         plt.ylim(0, 1)
         
     if save_files:
-        plt.savefig(f"circulant_100nodes_4nbs_coop_freq_evol_error.pdf",
+        plt.savefig("random_coop_freq_evol_error.pdf",
                     bbox_inches="tight")
     
     else:    
@@ -260,14 +264,14 @@ plot_coop_freq_evol(coop_freqs, b, save_files=True)
 ##############################################################################
 
 # Generate final cooperator frequency for different b values
-def gen_final_coop_freq(n_nodes, n_neighbs, nt, nt_save, b, eps=0., init_coop_freq=0.5, seed=None):
+def gen_final_coop_freq(n_nodes, n_edges, nt, nt_save, b, eps=0., init_coop_freq=0.5, seed=None):
     # n: lattice side -> number of sites = n^2
+    # n_edges: number of edges
     # nt: number of timesteps to evolve before annotating results
-    # nt: number of timesteps to annotate results for calculating statistics
+    # nt_save: number of timesteps to annotate results for calculating statistics
     # b: array of values for b parameter value for the payoff matrix
     # eps: eps parameter value for the payoff matrix
     # init_coop_freq: frequency of cooperators on initial condition
-    # init_cond: initial condition of the lattice
     # save_files: wether to save plots to files or not
     # seed: random number generator seed
     
@@ -281,7 +285,7 @@ def gen_final_coop_freq(n_nodes, n_neighbs, nt, nt_save, b, eps=0., init_coop_fr
         payoff_mat = np.array([[1., 0],[b[j], eps]]) # Define the payoff matrix
         
 
-        network, colormap = gen_net(n_nodes, n_neighbs, init_coop_freq)
+        network, colormap = gen_net(n_nodes, n_edges, init_coop_freq)
         calc_fit_mat(network, payoff_mat)
         
         # Time evolution = Loop over timesteps
@@ -334,7 +338,7 @@ def plot_final_coop_freq(coop_freq, b, save_files=False):
     
     # Save plot to file or show it
     if save_files:
-        plt.savefig("circulant_100nodes_4nbs_final_coop_freq_vs_b.pdf", bbox_inches="tight")
+        plt.savefig("random_final_coop_freq_vs_b.pdf", bbox_inches="tight")
         plt.close()
         
     else:
@@ -344,7 +348,7 @@ def plot_final_coop_freq(coop_freq, b, save_files=False):
 # coop_freq = gen_final_coop_freq(n_nodes=100, n_neighbs=4, nt=80, nt_save=20, 
 #                                 b=b, eps=0., init_coop_freq=0.9, seed=0)
 
-# plot_final_coop_freq(coop_freq, b, save_files=True)
+# plot_final_coop_freq(coop_freq, b, save_files=False)
 
 
 ##############################################################################
