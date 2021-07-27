@@ -143,9 +143,9 @@ def gen_ring_net(n0, n1, coop_freq0, coop_freq1, k, seed=None):
     # Generate array with strategies for each node, randomly sorted
     np.random.seed(seed)
     strat0 = np.random.choice([0,1], n0, p=[coop_freq0, 1-coop_freq0])
-    strat1 = np.random.choice([0,1], n1, p=[coop_freq1, 1-coop_freq1])
+    # strat1 = np.random.choice([0,1], n1, p=[coop_freq1, 1-coop_freq1])
        
-    # strat1 = strat0
+    strat1 = strat0
     
     # for i in range(n0//10*9):
     #     network.nodes[i]["strat"] = 0
@@ -158,7 +158,7 @@ def gen_ring_net(n0, n1, coop_freq0, coop_freq1, k, seed=None):
     #     colormap[i] = "yellow"
     #     network.nodes[i+n0]["strat"] = 1
     #     colormap[i+n0] = "yellow"
-                        
+
     # Loop over nodes
     for i in range(n0):
         
@@ -237,9 +237,10 @@ def calc_fit_mat(network, n0, n1, payoff_mat0, payoff_mat1):
         
         # Sum the contribution of each neighbor for the fitness of the focal node
         for nb in network.neighbors(i):
+            # print(network.nodes[nb]["strat"])
             network.nodes[i]["fit"] += payoff_mat0[network.nodes[i]["strat"],
                                                     network.nodes[nb]["strat"]]
-            
+        # print("\n")
     # Loop over nodes
     for i in range(n0, n0+n1):
         
@@ -553,28 +554,28 @@ def gen_coop_freq_evol(n0, n1, nt, b0, b1, seeds, init_coop_freq0, init_coop_fre
     for j in tqdm(range(len(b1))):
         
         # Loop over different seeds
-        for k in range(len(seeds)):
+        for s in range(len(seeds)):
             
             payoff_mat1 = np.array([[1., 0],[b1[j], 0]]) # Define the payoff matrix
             
             # Set random number generator seed
-            np.random.seed(seeds[k])
+            np.random.seed(seeds[s])
             
             # Initialize network and calculate its fitness matrix
             network, colormap = gen_ring_net(n0, n1, init_coop_freq0, init_coop_freq1, 
-                                             k, seed=seeds[k])
+                                             k, seed=seeds[s])
             A = bipartite.projected_graph(network, [i for i in range(n0)])
             B = bipartite.projected_graph(network, [i for i in range(n0, n0+n1)])
             
             calc_fit_mat(network, n0, n1, payoff_mat0, payoff_mat1)
             
-            coop_freqs0[0,j] = 1 - sum(nx.get_node_attributes(A, "strat").values()) / n0
-            coop_freqs1[0,j] = 1 - sum(nx.get_node_attributes(B, "strat").values()) / n1
+            coop_freqs0[0,j,s] = 1 - sum(nx.get_node_attributes(A, "strat").values()) / n0
+            coop_freqs1[0,j,s] = 1 - sum(nx.get_node_attributes(B, "strat").values()) / n1
             
             # Time evolution of the network
             for i in range(1, nt):
                 
-                coop_freqs0[i,j,k], coop_freqs1[i,j,k] = evolve_strats(network, colormap, n0, n1, payoff_mat0, payoff_mat1) # Evolve the network by a timestep
+                coop_freqs0[i,j,s], coop_freqs1[i,j,k] = evolve_strats(network, colormap, n0, n1, payoff_mat0, payoff_mat1) # Evolve the network by a timestep
     
     return coop_freqs0, coop_freqs1
 
@@ -634,11 +635,11 @@ def plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1, title=None, save_files
 
 
 b0 = 1.1
-b1 = np.arange(1.1, 2.1, 0.1)
+b1 = np.arange(1.1, 1.7, 0.1)
 n0 = 100
 n1 = 100
 nt = 100
-seeds = [i for i in range(500)]
+seeds = [i for i in range(10)]
 init_coop_freq0 = 0.9
 init_coop_freq1 = 0.9
 k = 5
