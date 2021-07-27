@@ -554,7 +554,7 @@ def gen_coop_freq_evol(n0, n1, nt, b0, b1, seeds, init_coop_freq0, init_coop_fre
     for j in tqdm(range(len(b1))):
         
         # Loop over different seeds
-        for s in range(len(seeds)):
+        for s in tqdm(range(len(seeds))):
             
             payoff_mat1 = np.array([[1., 0],[b1[j], 0]]) # Define the payoff matrix
             
@@ -601,7 +601,7 @@ def plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1, title=None, save_files
         plt.plot(timesteps, avg_coop_freqs0[:,i], color=colors[i], lw=3,
                  label=f"$b = {b1[i]:0.2f}$", alpha=1.) # Plot cooperator frequency over time
         plt.fill_between(timesteps, avg_coop_freqs0[:,i]-std_coop_freqs0[:,i], 
-                         avg_coop_freqs0[:,i]+std_coop_freqs0[:,i], color=colors[i], alpha=0.3)
+                         avg_coop_freqs0[:,i]+std_coop_freqs0[:,i], color=colors[i], alpha=0.15)
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)
         plt.xlim(0, coop_freqs0.shape[0])
@@ -615,7 +615,7 @@ def plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1, title=None, save_files
         plt.plot(timesteps, avg_coop_freqs1[:,i], color=colors[i], lw=3,
                  label=f"$b = {b1[i]:0.2f}$", alpha=1.) # Plot cooperator frequency over time
         plt.fill_between(timesteps, avg_coop_freqs1[:,i]-std_coop_freqs1[:,i], 
-                         avg_coop_freqs1[:,i]+std_coop_freqs1[:,i], color=colors[i], alpha=0.3)
+                         avg_coop_freqs1[:,i]+std_coop_freqs1[:,i], color=colors[i], alpha=0.15)
         plt.legend(loc=(1.01, 0.1), fontsize=16) # Add legend
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)
@@ -634,12 +634,13 @@ def plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1, title=None, save_files
         plt.show()
 
 
-b0 = 1.1
-b1 = np.arange(1.1, 1.7, 0.1)
+b0 = 1.4
+b1 = np.arange(1.2, 1.5, 0.05)
+
 n0 = 100
 n1 = 100
 nt = 100
-seeds = [i for i in range(10)]
+seeds = [i for i in range(200)]
 init_coop_freq0 = 0.9
 init_coop_freq1 = 0.9
 k = 5
