@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul 27 16:54:30 2021
+Created on Wed Jul 28 15:24:40 2021
 
 @author: joao-valeriano
 """
@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import time
 
-def gen_random_net(n0, n1, coop_freq0, coop_freq1, n_keep, seed=None):
+
+def gen_nested_net(n0, n1, coop_freq0, coop_freq1, seed=None):
     # number_of_nodes: number of nodes in the network
     # knn: number of nearest neighbors to connect
     # rewire: probability of rewiring a connection
@@ -25,10 +26,44 @@ def gen_random_net(n0, n1, coop_freq0, coop_freq1, n_keep, seed=None):
     # Array to store colormap indicating cooperators (blue) and defectors (red)
     colormap = []
     
+    network.remove_edges_from(list(network.edges))
+    network.add_edge(0, n0)
+    network.add_edge(0, n0+1)
+    network.add_edge(1, n0)
+    network.add_edge(1, n0+1)
+    
+    for i in range(2, n0):
+        
+        A = bipartite.projected_graph(network, [i for i in range(n0)])
+        B = bipartite.projected_graph(network, [i for i in range(n0, n0+n1)])
+        
+        nodes = np.random.choice([i for i in range(n0, n0+n1)], 2, p=np.array(B.degree)[:,1]/np.sum(np.array(B.degree)[:,1]))
+        network.add_edge(i, nodes[0])
+        # network.add_edge(i, nodes[1])
+        
+        nodes = np.random.choice([i for i in range(n0)], 2, p=np.array(A.degree)[:,1]/np.sum(np.array(A.degree)[:,1]))
+        network.add_edge(i+n0, nodes[0])
+        # network.add_edge(i+n0, nodes[1])
+    
     # Generate array with strategies for each node, randomly sorted
     np.random.seed(seed)
-    strat0 = np.random.choice([0,1], n0, p=[coop_freq0, 1-coop_freq0])
-    strat1 = np.random.choice([0,1], n1, p=[coop_freq1, 1-coop_freq1])
+    # strat0 = np.random.choice([0,1], n0, p=[coop_freq0, 1-coop_freq0])
+    # strat1 = np.random.choice([0,1], n1, p=[coop_freq1, 1-coop_freq1])
+    
+    strat0 = np.zeros(n0)
+    strat1 = np.zeros(n0)
+    
+    deg0 = np.array(network.degree([i for i in range(n0)]))
+    deg1 = np.array(network.degree([i for i in range(n0, n0+n1)]))
+    
+    # deg0 = deg0[:,0][np.argsort(deg0[:,-1])][-round(n0*(1-coop_freq0)):]
+    # deg1 = deg1[:,0][np.argsort(deg1[:,-1])][-round(n1*(1-coop_freq1)):]
+    
+    deg0 = deg0[:,0][np.argsort(deg0[:,-1])][:round(n0*(1-coop_freq0))]
+    deg1 = deg1[:,0][np.argsort(deg1[:,-1])][:round(n1*(1-coop_freq1))]
+    
+    strat0[deg0] = 1.
+    strat1[deg1-n0] = 1.
     
     # Loop over nodes
     for i in range(n0):
@@ -62,33 +97,12 @@ def gen_random_net(n0, n1, coop_freq0, coop_freq1, n_keep, seed=None):
         
         # Set node positions
         network.nodes[i]["pos"] = (1,n0-i)
-    
-    save_edges = list(network.edges)
-    np.random.shuffle(save_edges)
-    
-    network.remove_edges_from(list(network.edges))
-    
-    B_nodes = [i for i in range(n0, n0+n1)]
-    
-    for i in range(n0):
-        node = np.random.choice(B_nodes)
-        network.add_edge(i, node)
-        B_nodes.remove(node)
-        save_edges.remove((i,node))
-    
-    network.add_edges_from(save_edges[:n_keep-n0])
-    
-    # for i in range(n_remove):
-    #     node = np.random.choice(len(network.edges))
-    #     network.remove_edge(*list(network.edges)[node])
-    
+        
     return network, colormap
 
-# network, colormap = gen_random_net(10, 20, 0.5, 0.5, 90, None)
-# nx.draw_networkx_nodes(network, nx.get_node_attributes(network, "pos"), 
-#                        node_color=colormap, node_size=100)
-# nx.draw_networkx_edges(network, nx.get_node_attributes(network, "pos"))
-# plt.show()
+net, cmap = gen_nested_net(100, 100, 0.5, 0.5, seed=None)
+nx.draw(net, nx.get_node_attributes(net, "pos"), node_color=cmap)
+
 
 def plot_partition(network, colormap, n0, n1, p):
     if p == 0:
@@ -264,7 +278,7 @@ def show_random_time_evol(n0, n1, init_coop_freq0, init_coop_freq1, n_remove, nt
     # Initialize network and calculate the fitness of its nodes
     # network, colormap = gen_ring_net(n0, n1, init_coop_freq0, init_coop_freq1, k, seed)
     
-    network, colormap = gen_random_net(n0, n1, init_coop_freq0, init_coop_freq1, n_remove, seed)
+    network, colormap = gen_nested_net(n0, n1, init_coop_freq0, init_coop_freq1, seed)
     
     calc_fit_mat(network, n0, n1, payoff_mat0, payoff_mat1)
     
@@ -307,11 +321,11 @@ def show_random_time_evol_wparts(n0, n1, init_coop_freq0, init_coop_freq1, n_kee
     payoff_mat1 = np.array([[1, 0],[b1, 0]])
     
     # Initialize network and calculate the fitness of its nodes  
-    network, colormap = gen_random_net(n0, n0, init_coop_freq0, init_coop_freq1, n_keep, seed)
+    network, colormap = gen_nested_net(n0, n1, init_coop_freq0, init_coop_freq1, seed)
     
-    for i in range(n0):
-        network.nodes[i+n0]["strat"] = network.nodes[i]["strat"]
-        colormap[i+n0] = colormap[i]
+    # for i in range(n0):
+    #     network.nodes[i+n0]["strat"] = network.nodes[i]["strat"]
+    #     colormap[i+n0] = colormap[i]
     
     # for i in range(n0//6):
     #     network.nodes[i]["strat"] = 0
@@ -370,228 +384,4 @@ def show_random_time_evol_wparts(n0, n1, init_coop_freq0, init_coop_freq1, n_kee
         # plt.savefig(f"small_world_movie/small_world{i:04d}.png", dpi=300)
         plt.show()
         
-# show_random_time_evol_wparts(100, 100, 0.9, 0.9, 200, nt=100, b0=1.2, b1=1.2, seed=None)
-
-
-##############################################################################
-
-# Generate Cooperator Frequency curves for different b values
-def gen_coop_freq_evol(n0, n1, nt, b0, b1, seeds, init_coop_freq0, init_coop_freq1, n_keep):
-    # n: number of nodes in the network
-    # nt: number of timesteps to run time evolution
-    # b0: b parameter of payoff matrix A
-    # b1: array for values of b parameter of payoff matrix A
-    # eps: eps parameter of payoff matrix
-    # seed: seed for random number generation
-    # init_coop_freq: cooperator frequency in the initial condition
-    # knn: number of nearest neighbors to connect
-    # rewire: probability of rewiring a connection
-    
-    # Array to store cooperator frequencies for all timesteps and b values
-    coop_freqs0 = np.zeros((nt, len(b1), len(seeds)))
-    coop_freqs1 = np.zeros((nt, len(b1), len(seeds)))
-    
-    payoff_mat0 = np.array([[1., 0],[b0, 0]]) # Define the payoff matrix
-    
-    # Loop over b values
-    for j in tqdm(range(len(b1))):
-        
-        # Loop over different seeds
-        for s in tqdm(range(len(seeds))):
-            
-            payoff_mat1 = np.array([[1., 0],[b1[j], 0]]) # Define the payoff matrix
-            
-            # Set random number generator seed
-            np.random.seed(seeds[s])
-            
-            # Initialize network and calculate its fitness matrix
-            network, colormap = gen_random_net(n0, n1, init_coop_freq0, init_coop_freq1, 
-                                               n_keep, seed=seeds[s])
-            A = bipartite.projected_graph(network, [i for i in range(n0)])
-            B = bipartite.projected_graph(network, [i for i in range(n0, n0+n1)])
-            
-            calc_fit_mat(network, n0, n1, payoff_mat0, payoff_mat1)
-            
-            coop_freqs0[0,j,s] = 1 - sum(nx.get_node_attributes(A, "strat").values()) / n0
-            coop_freqs1[0,j,s] = 1 - sum(nx.get_node_attributes(B, "strat").values()) / n1
-            
-            # Time evolution of the network
-            for i in range(1, nt):
-                
-                coop_freqs0[i,j,s], coop_freqs1[i,j,s] = evolve_strats(network, colormap, n0, n1, payoff_mat0, payoff_mat1) # Evolve the network by a timestep
-    
-    return coop_freqs0, coop_freqs1
-
-
-def plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1, title=None, save_files=False):
-    
-    # Array with timesteps
-    timesteps = np.linspace(1, coop_freqs0.shape[0], coop_freqs0.shape[0])
-    
-    avg_coop_freqs0 = np.mean(coop_freqs0, axis=2) # Average cooperator frequencies
-    std_coop_freqs0 = np.std(coop_freqs0, axis=2) # Standard deviation of cooperator frequencies
-    
-    avg_coop_freqs1 = np.mean(coop_freqs1, axis=2) # Average cooperator frequencies
-    std_coop_freqs1 = np.std(coop_freqs1, axis=2) # Standard deviation of cooperator frequencies
-    
-    # Set colors for plot
-    colors = plt.cm.viridis(np.linspace(0, 1, len(b1)))
-    
-    # Plot cooperator frequency time evolution for different b values
-    plt.subplots(1, 2, figsize=(15,7))
-    for i in range(len(b1)):
-        plt.subplot(1, 2, 1)
-        plt.plot(timesteps, avg_coop_freqs0[:,i], color=colors[i], lw=3,
-                 label=f"$b = {b1[i]:0.2f}$", alpha=1.) # Plot cooperator frequency over time
-        plt.fill_between(timesteps, avg_coop_freqs0[:,i]-std_coop_freqs0[:,i], 
-                         avg_coop_freqs0[:,i]+std_coop_freqs0[:,i], color=colors[i], alpha=0.3)
-        plt.xticks(fontsize=16)
-        plt.yticks(fontsize=16)
-        plt.xlim(0, coop_freqs0.shape[0])
-        plt.ylim(0, 1)
-        plt.xlabel("Time", fontsize=24)
-        plt.ylabel("Cooperator Frequency of A", fontsize=24)
-        plt.ylim(0, 1)
-        plt.title(title, fontsize=28)
-        
-        plt.subplot(1, 2, 2)
-        plt.plot(timesteps, avg_coop_freqs1[:,i], color=colors[i], lw=3,
-                 label=f"$b = {b1[i]:0.2f}$", alpha=1.) # Plot cooperator frequency over time
-        plt.fill_between(timesteps, avg_coop_freqs1[:,i]-std_coop_freqs1[:,i], 
-                         avg_coop_freqs1[:,i]+std_coop_freqs1[:,i], color=colors[i], alpha=0.3)
-        plt.legend(loc=(1.01, 0.1), fontsize=16) # Add legend
-        plt.xticks(fontsize=16)
-        plt.yticks(fontsize=16)
-        plt.xlim(0, coop_freqs0.shape[0])
-        plt.ylim(0, 1)
-        plt.xlabel("Time", fontsize=24)
-        plt.ylabel("Cooperator Frequency of B", fontsize=24)
-        plt.ylim(0, 1)
-        plt.title(title, fontsize=28)
-        
-    if save_files:
-        plt.savefig(f"bipartite_coop_freq_evol_error.pdf",
-                    bbox_inches="tight")
-    
-    else:    
-        plt.show()
-
-
-# b0 = 1.2
-# # b1 = np.arange(1.1, 1.4, 0.1)
-# b1 = [1.2]
-# n0 = 100
-# n1 = 100
-# nt = 100
-# seeds = [i for i in range(50)]
-# init_coop_freq0 = 0.9
-# init_coop_freq1 = 0.9
-# n_keep = 400
-
-# coop_freqs0, coop_freqs1 = gen_coop_freq_evol(n0, n1, nt, b0, b1, seeds, 
-#                                               init_coop_freq0, init_coop_freq1, n_keep)
-# plot_coop_freq_evol(coop_freqs0, coop_freqs1, b0, b1)
-
-
-##############################################################################
-
-# Generate final cooperator frequency for different b values
-def gen_final_coop_freq(n0, n1, n_keep, nt, nt_save, b0, b1, init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=[None]):
-    # n: lattice side -> number of sites = n^2
-    # knn: number of nearest neighbors to connect
-    # rewire: probability of rewiring a connection
-    # nt: number of timesteps to evolve before annotating results
-    # nt_save: number of timesteps to annotate results for calculating statistics
-    # b: array of values for b parameter value for the payoff matrix
-    # eps: eps parameter value for the payoff matrix
-    # init_coop_freq: frequency of cooperators on initial condition
-    # init_cond: initial condition of the lattice
-    # save_files: wether to save plots to files or not
-    # seed: random number generator seed
-    
-    
-    # Array to store cooperator frequency for different b values and different timesteps
-    coop_freqs0 = np.zeros((len(b1), len(seeds), nt_save))
-    coop_freqs1 = np.zeros((len(b1), len(seeds), nt_save))
-    
-    payoff_mat0 = np.array([[1., 0],[b0, 0]]) # Define the payoff matrix
-    
-    # Loop over b values
-    for j in range(len(b1)):
-        for s in range(len(seeds)):
-            payoff_mat1 = np.array([[1., 0],[b1[j], 0]]) # Define the payoff matrix
-            
-            network, colormap = gen_random_net(n0, n1, init_coop_freq0, init_coop_freq1, n_keep, seeds[s])
-            calc_fit_mat(network, n0, n1, payoff_mat0, payoff_mat1)
-            
-            # Time evolution = Loop over timesteps
-            for i in range(1, nt):
-                evolve_strats(network, colormap, n0, n1, payoff_mat0, payoff_mat1) # Evolve the network by a timestep
-                
-                print(f"\rb: {j+1}/{len(b1)}; time: {i+1}/{nt}", end="")
-            
-            for i in range(nt_save):
-                coop_freqs0[j,s,i], coop_freqs1[j,s,i] = evolve_strats(network, colormap, n0, n1, 
-                                                                     payoff_mat0, payoff_mat1) # Evolve the network by a timestep
-                
-                print(f"\rb: {j+1}/{len(b1)}; time: {i+1}/{nt_save}", end="")
-    
-    return coop_freqs0, coop_freqs1
-
-# Plot statistics of final cooperator frequency for different b values
-def plot_final_coop_freq(coop_freqs0, coop_freqs1, b0, b1, save_files=False):
-    # coop_freq: array containing some timesteps of the cooperator frequency for different values of b
-    #        |-> shape: (len(b), # of timesteps)
-    # b: array of b values considered for generating "coop_freq"
-    # save_files: wether or not to save plot to file
-    
-    avg_coop_freqs0 = np.mean(coop_freqs0, axis=-1)
-    avg_coop_freqs1 = np.mean(coop_freqs1, axis=-1)
-    
-    final_coop_freq_avg0 = np.mean(avg_coop_freqs0, axis=-1) # Average final cooperator frequencies
-    final_coop_freq_min0 = np.min(avg_coop_freqs0, axis=-1) # Minimum final cooperator frequencies
-    final_coop_freq_max0 = np.max(avg_coop_freqs0, axis=-1) # Maximum final cooperator frequencies
-    
-    final_coop_freq_avg1 = np.mean(avg_coop_freqs1, axis=-1) # Average final cooperator frequencies
-    final_coop_freq_min1 = np.min(avg_coop_freqs1, axis=-1) # Minimum final cooperator frequencies
-    final_coop_freq_max1 = np.max(avg_coop_freqs1, axis=-1) # Maximum final cooperator frequencies
-    
-    # Generate errorbars from minimum to maximum cooperator frequencies
-    errorbars0 = np.zeros((2, len(b1)))
-    errorbars1 = np.zeros((2, len(b1)))
-    for i in range(len(b1)):
-        errorbars0[:,i] = [final_coop_freq_avg0[i]-final_coop_freq_min0[i],
-                        final_coop_freq_max0[i]-final_coop_freq_avg0[i]]
-        errorbars1[:,i] = [final_coop_freq_avg1[i]-final_coop_freq_min1[i],
-                        final_coop_freq_max1[i]-final_coop_freq_avg1[i]]
-    
-    # Set colors for plot
-    colors = plt.cm.viridis(np.linspace(0, 1, len(b1)))
-    
-    # Plot final cooperator frequency for different b values
-    plt.figure(figsize=(10,7))
-    for j in range(len(b1)):
-        # Plot markers with errorbars
-        plt.errorbar(b1[j:j+1], final_coop_freq_avg0[j:j+1], errorbars0[:,j:j+1], 
-                     color=colors[j], marker="o", markersize=10, capsize=5,
-                     label=f"$b = {b1[j]:0.2f}$")
-        plt.xticks(fontsize=16)
-        plt.yticks(fontsize=16)
-        plt.xlabel("$b_{B}$", fontsize=24)
-        plt.ylabel("Final Cooperator Frequency", fontsize=24)
-    # plt.legend(loc=(1.01, 0.5), fontsize=16)
-    
-    # Save plot to file or show it
-    if save_files:
-        plt.savefig("bipartite_final_coop_freq_vs_b.pdf", bbox_inches="tight")
-        plt.close()
-        
-    else:
-        plt.show()
-
-b0 = 1.1
-b1 = np.linspace(1.1, 1.5, 2)
-seeds = [i for i in range(2)]
-coop_freqs0, coop_freqs1 = gen_final_coop_freq(n0=100, n1=100, n_keep=200, nt=80, nt_save=20, b0=b0, b1=b1, 
-                    init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=seeds)
-plot_final_coop_freq(coop_freqs0, coop_freqs1, b0, b1, save_files=False)
+# show_random_time_evol_wparts(100, 100, 0.05, 0.05, 200, nt=100, b0=1.9, b1=1.9, seed=1)
