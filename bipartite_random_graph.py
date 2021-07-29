@@ -367,10 +367,10 @@ def show_random_time_evol_wparts(n0, n1, init_coop_freq0, init_coop_freq1, n_kee
         plt.subplot(1,3,3)
         nx.draw(B, nx.get_node_attributes(B, "pos"), node_size=25, node_color=colormap[n0:])
         plt.suptitle(f"{i}")
-        # plt.savefig(f"small_world_movie/small_world{i:04d}.png", dpi=300)
+        plt.savefig(f"bipartite_movie/random/nkeep[400]-b0[1.5]-b1[1.1]{i:04d}.png", dpi=300)
         plt.show()
         
-# show_random_time_evol_wparts(100, 100, 0.9, 0.9, 200, nt=100, b0=1.2, b1=1.2, seed=None)
+show_random_time_evol_wparts(100, 100, 0.9, 0.9, 200, nt=100, b0=1.5, b1=1.1, seed=None)
 
 
 ##############################################################################
@@ -652,21 +652,24 @@ def plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
     avg_coop_freqs1 = np.mean(coop_freqs1, axis=-1)
     
     final_coop_freq_avg0 = np.mean(avg_coop_freqs0, axis=-1) # Average final cooperator frequencies
-    final_coop_freq_min0 = np.min(avg_coop_freqs0, axis=-1) # Minimum final cooperator frequencies
-    final_coop_freq_max0 = np.max(avg_coop_freqs0, axis=-1) # Maximum final cooperator frequencies
+    # final_coop_freq_min0 = np.min(avg_coop_freqs0, axis=-1) # Minimum final cooperator frequencies
+    # final_coop_freq_max0 = np.max(avg_coop_freqs0, axis=-1) # Maximum final cooperator frequencies
     
     final_coop_freq_avg1 = np.mean(avg_coop_freqs1, axis=-1) # Average final cooperator frequencies
-    final_coop_freq_min1 = np.min(avg_coop_freqs1, axis=-1) # Minimum final cooperator frequencies
-    final_coop_freq_max1 = np.max(avg_coop_freqs1, axis=-1) # Maximum final cooperator frequencies
+    # final_coop_freq_min1 = np.min(avg_coop_freqs1, axis=-1) # Minimum final cooperator frequencies
+    # final_coop_freq_max1 = np.max(avg_coop_freqs1, axis=-1) # Maximum final cooperator frequencies
     
-    # Generate errorbars from minimum to maximum cooperator frequencies
-    errorbars0 = np.zeros((2, len(b)))
-    errorbars1 = np.zeros((2, len(b)))
-    for i in range(len(b)):
-        errorbars0[:,i] = [final_coop_freq_avg0[i]-final_coop_freq_min0[i],
-                        final_coop_freq_max0[i]-final_coop_freq_avg0[i]]
-        errorbars1[:,i] = [final_coop_freq_avg1[i]-final_coop_freq_min1[i],
-                        final_coop_freq_max1[i]-final_coop_freq_avg1[i]]
+    final_coop_freq_mean_std0 = np.std(avg_coop_freqs0, axis=-1)/avg_coop_freqs0.shape[-1]**0.5 # Minimum final cooperator frequencies
+    final_coop_freq_mean_std1 = np.std(avg_coop_freqs1, axis=-1)/avg_coop_freqs1.shape[-1]**0.5 # Maximum final cooperator frequencies
+    
+    # # Generate errorbars from minimum to maximum cooperator frequencies
+    # errorbars0 = np.zeros((2, len(b)))
+    # errorbars1 = np.zeros((2, len(b)))
+    # for i in range(len(b)):
+    #     errorbars0[:,i] = [final_coop_freq_avg0[i]-final_coop_freq_min0[i],
+    #                     final_coop_freq_max0[i]-final_coop_freq_avg0[i]]
+    #     errorbars1[:,i] = [final_coop_freq_avg1[i]-final_coop_freq_min1[i],
+    #                     final_coop_freq_max1[i]-final_coop_freq_avg1[i]]
     
     # Set colors for plot
     colors = plt.cm.viridis(np.linspace(0, 1, len(b)))
@@ -675,9 +678,10 @@ def plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
     plt.figure(figsize=(10,7))
     for j in range(len(b)):
         # Plot markers with errorbars
-        plt.errorbar(b[j:j+1], final_coop_freq_avg0[j:j+1], errorbars0[:,j:j+1], 
-                     color=colors[j], marker="o", markersize=10, capsize=5,
-                     label=f"$b = {b[j]:0.2f}$")
+        plt.errorbar(b[j:j+1], final_coop_freq_avg1[j:j+1], final_coop_freq_mean_std1[j], 
+                      color=colors[j], marker="o", markersize=10, capsize=5,
+                      label=f"$b = {b[j]:0.2f}$")
+
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)
         plt.xlabel("$b$", fontsize=24)
@@ -693,8 +697,8 @@ def plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
         plt.show()
 
 
-b = np.linspace(1.1, 1.55, 0.05)
-seeds = [i for i in range(250)]
-coop_freqs0, coop_freqs1 = gen_final_coop_freq_single_b(n0=100, n1=100, n_keep=200, nt=80, nt_save=20, b=b, 
-                    init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=seeds)
-plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
+# b = np.arange(1.1, 1.55, 0.05)
+# seeds = [i for i in range(200)]
+# coop_freqs0, coop_freqs1 = gen_final_coop_freq_single_b(n0=100, n1=100, n_keep=400, nt=80, nt_save=20, b=b, 
+#                     init_coop_freq0=0.9, init_coop_freq1=0.9, seeds=seeds)
+# plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
