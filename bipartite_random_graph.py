@@ -589,9 +589,112 @@ def plot_final_coop_freq(coop_freqs0, coop_freqs1, b0, b1, save_files=False):
     else:
         plt.show()
 
-b0 = 1.1
-b1 = np.linspace(1.1, 1.5, 2)
-seeds = [i for i in range(2)]
-coop_freqs0, coop_freqs1 = gen_final_coop_freq(n0=100, n1=100, n_keep=200, nt=80, nt_save=20, b0=b0, b1=b1, 
+# b0 = 1.1
+# b1 = np.linspace(1.1, 1.5, 2)
+# seeds = [i for i in range(2)]
+# coop_freqs0, coop_freqs1 = gen_final_coop_freq(n0=100, n1=100, n_keep=200, nt=80, nt_save=20, b0=b0, b1=b1, 
+#                     init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=seeds)
+# plot_final_coop_freq(coop_freqs0, coop_freqs1, b0, b1, save_files=False)
+
+
+##############################################################################
+
+# Generate final cooperator frequency for different b values
+def gen_final_coop_freq_single_b(n0, n1, n_keep, nt, nt_save, b, init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=[None]):
+    # n: lattice side -> number of sites = n^2
+    # knn: number of nearest neighbors to connect
+    # rewire: probability of rewiring a connection
+    # nt: number of timesteps to evolve before annotating results
+    # nt_save: number of timesteps to annotate results for calculating statistics
+    # b: array of values for b parameter value for the payoff matrix
+    # eps: eps parameter value for the payoff matrix
+    # init_coop_freq: frequency of cooperators on initial condition
+    # init_cond: initial condition of the lattice
+    # save_files: wether to save plots to files or not
+    # seed: random number generator seed
+    
+    
+    # Array to store cooperator frequency for different b values and different timesteps
+    coop_freqs0 = np.zeros((len(b), len(seeds), nt_save))
+    coop_freqs1 = np.zeros((len(b), len(seeds), nt_save))
+
+    
+    # Loop over b values
+    for j in range(len(b)):
+        for s in range(len(seeds)):
+            payoff_mat = np.array([[1., 0],[b[j], 0]]) # Define the payoff matrix
+            
+            network, colormap = gen_random_net(n0, n1, init_coop_freq0, init_coop_freq1, n_keep, seeds[s])
+            calc_fit_mat(network, n0, n1, payoff_mat, payoff_mat)
+            
+            # Time evolution = Loop over timesteps
+            for i in range(1, nt):
+                evolve_strats(network, colormap, n0, n1, payoff_mat, payoff_mat) # Evolve the network by a timestep
+                
+                print(f"\rb: {j+1}/{len(b)}; time: {i+1}/{nt}", end="")
+            
+            for i in range(nt_save):
+                coop_freqs0[j,s,i], coop_freqs1[j,s,i] = evolve_strats(network, colormap, n0, n1, 
+                                                                     payoff_mat, payoff_mat) # Evolve the network by a timestep
+                
+                print(f"\rb: {j+1}/{len(b)}; time: {i+1}/{nt_save}", end="")
+    
+    return coop_freqs0, coop_freqs1
+
+# Plot statistics of final cooperator frequency for different b values
+def plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False):
+    # coop_freq: array containing some timesteps of the cooperator frequency for different values of b
+    #        |-> shape: (len(b), # of timesteps)
+    # b: array of b values considered for generating "coop_freq"
+    # save_files: wether or not to save plot to file
+    
+    avg_coop_freqs0 = np.mean(coop_freqs0, axis=-1)
+    avg_coop_freqs1 = np.mean(coop_freqs1, axis=-1)
+    
+    final_coop_freq_avg0 = np.mean(avg_coop_freqs0, axis=-1) # Average final cooperator frequencies
+    final_coop_freq_min0 = np.min(avg_coop_freqs0, axis=-1) # Minimum final cooperator frequencies
+    final_coop_freq_max0 = np.max(avg_coop_freqs0, axis=-1) # Maximum final cooperator frequencies
+    
+    final_coop_freq_avg1 = np.mean(avg_coop_freqs1, axis=-1) # Average final cooperator frequencies
+    final_coop_freq_min1 = np.min(avg_coop_freqs1, axis=-1) # Minimum final cooperator frequencies
+    final_coop_freq_max1 = np.max(avg_coop_freqs1, axis=-1) # Maximum final cooperator frequencies
+    
+    # Generate errorbars from minimum to maximum cooperator frequencies
+    errorbars0 = np.zeros((2, len(b)))
+    errorbars1 = np.zeros((2, len(b)))
+    for i in range(len(b)):
+        errorbars0[:,i] = [final_coop_freq_avg0[i]-final_coop_freq_min0[i],
+                        final_coop_freq_max0[i]-final_coop_freq_avg0[i]]
+        errorbars1[:,i] = [final_coop_freq_avg1[i]-final_coop_freq_min1[i],
+                        final_coop_freq_max1[i]-final_coop_freq_avg1[i]]
+    
+    # Set colors for plot
+    colors = plt.cm.viridis(np.linspace(0, 1, len(b)))
+    
+    # Plot final cooperator frequency for different b values
+    plt.figure(figsize=(10,7))
+    for j in range(len(b)):
+        # Plot markers with errorbars
+        plt.errorbar(b[j:j+1], final_coop_freq_avg0[j:j+1], errorbars0[:,j:j+1], 
+                     color=colors[j], marker="o", markersize=10, capsize=5,
+                     label=f"$b = {b[j]:0.2f}$")
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.xlabel("$b$", fontsize=24)
+        plt.ylabel("Final Cooperator Frequency", fontsize=24)
+    # plt.legend(loc=(1.01, 0.5), fontsize=16)
+    
+    # Save plot to file or show it
+    if save_files:
+        plt.savefig(f"bipartite_final_coop_freq_vs_b-b[{b[0]}..{b[-1]}].pdf", bbox_inches="tight")
+        plt.close()
+        
+    else:
+        plt.show()
+
+
+b = np.linspace(1.1, 1.55, 0.05)
+seeds = [i for i in range(250)]
+coop_freqs0, coop_freqs1 = gen_final_coop_freq_single_b(n0=100, n1=100, n_keep=200, nt=80, nt_save=20, b=b, 
                     init_coop_freq0=0.5, init_coop_freq1=0.5, seeds=seeds)
-plot_final_coop_freq(coop_freqs0, coop_freqs1, b0, b1, save_files=False)
+plot_final_coop_freq_single_b(coop_freqs0, coop_freqs1, b, save_files=False)
